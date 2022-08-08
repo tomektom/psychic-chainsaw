@@ -1,0 +1,6 @@
+db_file: test.db
+sources:
+  sekurak:
+    url: http://feeds.feedburner.com/sekurak_full
+  tuxnews:
+    url: https://tuxnews.pl/feed/
