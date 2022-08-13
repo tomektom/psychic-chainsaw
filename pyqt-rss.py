@@ -67,13 +67,6 @@ def getdbdata():
   con.close()
   return rows
 
-def rmsourceDB(source):
-  con = sqlite3.connect(config['db_file'])
-  cur = con.cursor()
-  cur.execute("DELETE FROM articles WHERE source=?", (source,))
-  con.commit()
-  con.close()
-
 def updatentry(url):
   con = sqlite3.connect(config['db_file'])
   cur = con.cursor()
@@ -131,10 +124,12 @@ class TableView(QTableWidget):
       item.setFont(font)
 
 class Settings(QWidget):
-  def __init__(self):
+  def __init__(self, new_config):
     super().__init__()
     self.setFixedSize(300, 400)
     self.setWindowTitle("PyQt RSS – Ustawienia")
+
+    self.new_config = new_config
     
     font = QFont()
     font.setBold(True)
@@ -142,7 +137,7 @@ class Settings(QWidget):
     self.mygroupbox = QGroupBox()
     self.layout = QVBoxLayout()
     # layout for ok/cancel buttons
-    # layout_down = QHBoxLayout()
+    self.layout_down = QHBoxLayout()
     self.layout_main = QVBoxLayout()
 
     # add sources
@@ -164,7 +159,7 @@ class Settings(QWidget):
     self.removeLabel.setFont(font)
     self.layout_main.addWidget(self.removeLabel)
     # add buttons for all sources from config
-    for source in config['sources']:
+    for source in self.new_config['sources']:
       self.addRemoveButton(source)
 
     self.mygroupbox.setLayout(self.layout)
@@ -174,45 +169,50 @@ class Settings(QWidget):
     self.layout_main.addWidget(self.scroll)
 
     # ok/cancel button, disabled
-    # confirmBtn = QPushButton("OK")
-    # # self.confirmBtn.clicked.connect(lambda: self.addSource())
-    # cancel = QPushButton("Anuluj")
-    # cancel.clicked.connect(self.close)
-    # layout_down.addWidget(cancel)
-    # layout_down.addWidget(confirmBtn)
-    # layout_main.addLayout(layout_down)
+    self.confirmBtn = QPushButton("OK")
+    self.confirmBtn.clicked.connect(lambda: self.confirmSettings())
+    self.cancel = QPushButton("Anuluj")
+    self.cancel.clicked.connect(self.close)
+    self.layout_down.addWidget(self.cancel)
+    self.layout_down.addWidget(self.confirmBtn)
+    self.layout_main.addLayout(self.layout_down)
 
     self.setLayout(self.layout_main)
+
+  def confirmSettings(self):
+    global config
+    # remove unknown sources from DB
+    con = sqlite3.connect(self.new_config['db_file'])
+    cur = con.cursor()
+    k = list(self.new_config['sources'].keys())
+    q = ', '.join('?' * len(k))
+    sqlstr = "DELETE FROM articles WHERE source NOT IN (" + q + ")"
+    cur.execute(sqlstr, k)
+    con.commit()
+    con.close()
+    # assign new config to variable & save to file
+    config = self.new_config
+    saveconfig(self.new_config)
+    self.close()
 
   def addRemoveButton(self, source):
     x = 'Usuń ' + source
     self.removeSourceBtn = QPushButton(x)
     self.removeSourceBtn.setObjectName(source)
-    self.removeSourceBtn.setToolTip(config['sources'][source]['url'])
+    self.removeSourceBtn.setToolTip(self.new_config['sources'][source]['url'])
     self.removeSourceBtn.clicked.connect(lambda: self.removeSource())
     self.layout.addWidget(self.removeSourceBtn)
 
   def addSource(self, source, url):
     newkey = {source: {'url': url}}
-    config['sources'].update(newkey)
-    saveconfig(config)
-    # TODO need manual refresh, fix it
+    self.new_config['sources'].update(newkey)
     self.addRemoveButton(source)
-    # x = 'Usuń ' + source
-    # self.removeSourceBtn = QPushButton(x)
-    # self.removeSourceBtn.setObjectName(source)
-    # self.removeSourceBtn.setToolTip(config['sources'][source]['url'])
-    # self.removeSourceBtn.clicked.connect(lambda: self.removeSource())
-    # self.layout.addWidget(self.removeSourceBtn)
 
   def removeSource(self):
     x = self.sender().objectName()
-    config['sources'].pop(x)
-    saveconfig(config)
-    # TODO still need manual refresh to see changes, fix it
-    rmsourceDB(x)
-    # hide button
+    self.new_config['sources'].pop(x)
     self.sender().setHidden(True)
+
 
 class MainWindow(QMainWindow):
   def __init__(self):
@@ -220,7 +220,6 @@ class MainWindow(QMainWindow):
     self.setWindowTitle('PyQt RSS')
     self.setMinimumSize(650, 800)
 
-    self.settings = Settings()
     self.menu()
     self.setCentralWidget(TableView())
 
@@ -239,13 +238,17 @@ class MainWindow(QMainWindow):
 
     settingButton = QAction('Ustawienia', self)
     settingButton.setShortcut('Ctrl+O')
-    settingButton.triggered.connect(self.settings.show)
+    settingButton.triggered.connect(lambda: self.settingShow())
     fileMenu.addAction(settingButton)
 
     exitButton = QAction('Zamknij', self)
     exitButton.setShortcut('Ctrl+Q')
     exitButton.triggered.connect(self.close)
     fileMenu.addAction(exitButton)
+
+  def settingShow(self):
+    self.settings = Settings(loadconfig())
+    self.settings.show()
 
 if __name__ == "__main__":
   config = loadconfig()
