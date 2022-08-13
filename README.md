@@ -8,4 +8,12 @@ Simple RSS gui in PyQt.
 - feedparser
 - pyqt5
 
-Other modules shold be builtin in Python.
+Other modules should be builtin in Python.
+
+## Roadmap
+- [ ] Auto update sources after x time
+- [ ] More sorting options (date, favourite, unread first etc.)
+- [ ] Mark source as favourite
+- [ ] Tray icon
+- [ ] Translations with .po files?
+- [ ] Something else?
