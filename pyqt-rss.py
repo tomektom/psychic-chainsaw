@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QWidget, QAction,
   QPushButton,QFormLayout,QHBoxLayout,QVBoxLayout,QScrollArea,QGroupBox,
   QLineEdit)
 from PyQt5.QtGui import QFont
+from PyQt5.QtCore import QTimer
 
 def loadconfig():
   with open('sources.yaml', 'r') as file:
@@ -222,6 +223,11 @@ class MainWindow(QMainWindow):
 
     self.menu()
     self.setCentralWidget(TableView())
+
+    self.timer = QTimer()
+    self.timer.timeout.connect(lambda: self.refresh())
+    self.timer.setInterval(3600000)
+    self.timer.start()
 
   def refresh(self):
     updatedb()
